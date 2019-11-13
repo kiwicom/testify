@@ -898,9 +898,7 @@ func ElementsMatch(t TestingT, listA, listB interface{}, msgAndArgs ...interface
 	aLen := aValue.Len()
 	bLen := bValue.Len()
 
-	if aLen != bLen {
-		return Fail(t, fmt.Sprintf("lengths don't match: %d != %d", aLen, bLen), msgAndArgs...)
-	}
+	var extraA, extraB []interface{}
 
 	// Mark indexes in bValue that we already used
 	visited := make([]bool, bLen)
@@ -918,8 +916,35 @@ func ElementsMatch(t TestingT, listA, listB interface{}, msgAndArgs ...interface
 			}
 		}
 		if !found {
-			return Fail(t, fmt.Sprintf("element %s appears more times in %s than in %s", element, aValue, bValue), msgAndArgs...)
+			extraA = append(extraA, element)
+
 		}
+	}
+
+	for j := 0; j < bLen; j++ {
+		if !visited[j] {
+			extraB = append(extraB, bValue.Index(j).Interface())
+
+		}
+	}
+
+	if len(extraA) > 0 || len(extraB) > 0 {
+		var msg bytes.Buffer
+
+		msg.WriteString("elements differ")
+		if len(extraA) > 0 {
+			msg.WriteString("\n\nextra elements in list A:\n")
+			msg.WriteString(spewConfig.Sdump(extraA))
+		}
+		if len(extraB) > 0 {
+			msg.WriteString("\n\nextra elements in list B:\n")
+			msg.WriteString(spewConfig.Sdump(extraB))
+		}
+		msg.WriteString("\n\nlistA:\n")
+		msg.WriteString(spewConfig.Sdump(listA))
+		msg.WriteString("\n\nlistB:\n")
+		msg.WriteString(spewConfig.Sdump(listB))
+		return Fail(t, msg.String(), msgAndArgs...)
 	}
 
 	return true
